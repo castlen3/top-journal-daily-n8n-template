@@ -3,4 +3,5 @@ private-source/
 .DS_Store
 node_modules/
 *.log
-
+out/
+logs/

@@ -15,6 +15,12 @@
     "Science",
     "Cell"
   ],
+  "runners": [
+    "n8n workflow import",
+    "standalone Python script",
+    "macOS launchd template",
+    "cron/systemd/GitHub Actions compatible script"
+  ],
   "outputs": [
     "email example in workflow",
     "Telegram/WhatsApp/local-file alternatives documented"
