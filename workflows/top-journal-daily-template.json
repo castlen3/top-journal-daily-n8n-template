@@ -399,7 +399,7 @@
     },
     {
       "parameters": {
-        "model": "={{ $env.OPENROUTER_MODEL || \"google/gemini-flash-1.5\" }}",
+        "model": "={{ $env.OPENROUTER_MODEL || \"deepseek/deepseek-v4-flash\" }}",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
@@ -500,7 +500,7 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "={{ $env.OPENAI_MODEL || \"gpt-4o-mini\" }}",
+          "value": "={{ $env.OPENAI_MODEL || \"qwen/qwen3.5-9b\" }}",
           "mode": "list",
           "cachedResultName": "Configurable chat model"
         },

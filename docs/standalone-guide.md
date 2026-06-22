@@ -20,7 +20,7 @@ Set an OpenAI-compatible endpoint:
 ```bash
 export LLM_BASE_URL="https://api.openai.com/v1"
 export LLM_API_KEY="your-key"
-export LLM_MODEL="gpt-4o-mini"
+export LLM_MODEL="qwen/qwen3.5-9b"
 python3 scripts/daily_top_journal_digest.py --output-dir ./out
 ```
 

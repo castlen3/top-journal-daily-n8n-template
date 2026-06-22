@@ -76,7 +76,7 @@ def sanitize(workflow: dict[str, Any], replacements: list[str] | None = None) ->
         if node.get("name") == "OpenAI Chat Model":
             params["model"] = {
                 "__rl": True,
-                "value": '={{ $env.OPENAI_MODEL || "gpt-4o-mini" }}',
+                "value": '={{ $env.OPENAI_MODEL || "qwen/qwen3.5-9b" }}',
                 "mode": "list",
                 "cachedResultName": "Configurable chat model",
             }
@@ -87,7 +87,7 @@ def sanitize(workflow: dict[str, Any], replacements: list[str] | None = None) ->
             )
 
         if node.get("name") == "OpenRouter Model Final Summary":
-            params["model"] = '={{ $env.OPENROUTER_MODEL || "google/gemini-flash-1.5" }}'
+            params["model"] = '={{ $env.OPENROUTER_MODEL || "deepseek/deepseek-v4-flash" }}'
             node["disabled"] = True
             node["notes"] = (
                 "Optional disabled example. The workflow currently uses the "

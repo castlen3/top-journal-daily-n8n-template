@@ -129,7 +129,7 @@ def parse_articles(xml_text: str) -> list[dict[str, str]]:
 def llm_summary(articles: list[dict[str, str]]) -> str:
     base_url = env("LLM_BASE_URL")
     api_key = env("LLM_API_KEY")
-    model = env("LLM_MODEL", env("OPENAI_MODEL", "gpt-4o-mini"))
+    model = env("LLM_MODEL", env("OPENAI_MODEL", "qwen/qwen3.5-9b"))
     if not base_url or not api_key:
         return ""
 
