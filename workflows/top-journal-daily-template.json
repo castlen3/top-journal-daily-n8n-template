@@ -1,0 +1,806 @@
+{
+  "name": "Top Journal Daily Digest - Public Template",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -688,
+        192
+      ],
+      "id": "template-1b0451c1",
+      "name": "Daily Schedule"
+    },
+    {
+      "parameters": {
+        "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "db",
+              "value": "pubmed"
+            },
+            {
+              "name": "retmode",
+              "value": "json"
+            },
+            {
+              "name": "=term",
+              "value": "=( (\"N Engl J Med\"[Journal]) OR (\"Lancet\"[Journal]) OR (\"JAMA\"[Journal]) OR (\"BMJ\"[Journal]) OR (\"Ann Intern Med\"[Journal]) OR (\"JAMA Intern Med\"[Journal]) OR (\"Nat Med\"[Journal]) OR (\"Nature\"[Journal]) OR (\"Science\"[Journal]) OR (\"Cell\"[Journal]) ) AND (hasabstract) AND \"{{ $now.minus({days: 1}).toFormat('yyyy/MM/dd') }}\"[dp]"
+            },
+            {
+              "name": "retmax",
+              "value": "45"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.PUBMED_API_KEY || \"\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        192
+      ],
+      "id": "template-41548246",
+      "name": "Search PubMed Articles",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "db",
+              "value": "pubmed"
+            },
+            {
+              "name": "retmode",
+              "value": "json"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.PUBMED_API_KEY || \"\" }}"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.esearchresult.idlist.join(',') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -16,
+        192
+      ],
+      "id": "template-66141dcd",
+      "name": "Fetch PubMed Summaries"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fa9798a3-5be2-47b0-bfdd-babf29c007f6",
+              "name": "articles",
+              "value": "={{ Object.values($json.result).filter(item => item && typeof item === 'object' && item.uid) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        192
+      ],
+      "id": "template-b1cb5736",
+      "name": "Extract Article List"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"articles\": {{ JSON.parse($json.articles) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        432,
+        192
+      ],
+      "id": "template-a418bd79",
+      "name": "Normalize Article Payload"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "articles",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        624,
+        192
+      ],
+      "id": "template-06e708b0",
+      "name": "Split Articles",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "db",
+              "value": "pubmed"
+            },
+            {
+              "name": "retmode",
+              "value": "xml"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.articles.uid }}"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.PUBMED_API_KEY || \"\" }}"
+            },
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1408,
+        624
+      ],
+      "id": "template-7d319573",
+      "name": "Fetch Article XML",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1184,
+        624
+      ],
+      "id": "template-6f6e665f",
+      "name": "Wait Before Fetch",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ade9a46c-bc48-4e69-96c4-a01c3f44d495",
+              "name": "title",
+              "value": "={{ $('Split Articles').item.json.articles.title }}",
+              "type": "string"
+            },
+            {
+              "id": "a246e2dd-9dfe-4cf1-8447-cdb4dea018d3",
+              "name": "url",
+              "value": "=https://pubmed.ncbi.nlm.nih.gov/{{ $('Split Articles').item.json.articles.uid }}",
+              "type": "string"
+            },
+            {
+              "id": "2252bb62-38b9-4abc-968a-41407019563b",
+              "name": "journal",
+              "value": "={{ $('Split Articles').item.json.articles.source }}",
+              "type": "string"
+            },
+            {
+              "id": "be306311-68fd-44e1-a845-a17cfb24d12f",
+              "name": "date",
+              "value": "={{ $('Split Articles').item.json.articles.pubdate }}",
+              "type": "string"
+            },
+            {
+              "id": "b2caf5d7-295e-40fa-9e2c-da369053e21d",
+              "name": "summary",
+              "value": "={{ $json.cleaned_content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        160
+      ],
+      "id": "template-52c796d0",
+      "name": "Prepare Article Record"
+    },
+    {
+      "parameters": {
+        "jsCode": "function getToday() {\n  const d = new Date();\n  const yyyy = d.getFullYear();\n  const mm = String(d.getMonth() + 1).padStart(2, '0');\n  const dd = String(d.getDate()).padStart(2, '0');\n  return `${yyyy}/${mm}/${dd}`;\n}\n\nfunction cleanText(value, maxLength = 0) {\n  const text = String(value ?? '').replace(/\\s+/g, ' ').trim();\n  if (!maxLength || text.length <= maxLength) return text;\n  return `${text.slice(0, maxLength)}...`;\n}\n\nconst today = getToday();\nconst articles = items.map((item, index) => ({\n  index: index + 1,\n  title: cleanText(item.json.title),\n  url: cleanText(item.json.url),\n  journal: cleanText(item.json.journal),\n  date: cleanText(item.json.date),\n  summary: cleanText(item.json.summary, 1800),\n  englishAbstract: cleanText(item.json.summary, 6000),\n}));\n\nlet html = `\\n<h2 style=\"color:#8b1e3f;\">每日臨床頂級期刊速報（${today}）</h2>\\n<ol>\\n`;\nlet llmInput = `這是我為您準備的頂級期刊文獻清單（共 ${articles.length} 篇）：\\n\\n`;\n\nfor (const article of articles) {\n  html += `\n  <li style=\"margin-bottom: 16px;\">\n    <div>\n      <a href=\"${article.url}\" style=\"font-size:1.05em; color:#8b1e3f; text-decoration:underline; font-weight:bold;\">\n        ${article.title}\n      </a>\n    </div>\n    <ul style=\"list-style:none; padding-left:0; margin-top:6px; margin-bottom:6px;\">\n      <li><b>期刊：</b>${article.journal}</li>\n      <li><b>出版日期：</b>${article.date}</li>\n      <li><b>摘要：</b>${article.summary || '未提供'}</li>\n    </ul>\n  </li>\n  `;\n\n  llmInput += `【第 ${article.index} 篇】\\n`;\n  llmInput += `標題：${article.title}\\n`;\n  llmInput += `連結：${article.url}\\n`;\n  llmInput += `背景資料：發表於 ${article.journal} (${article.date})\\n`;\n  llmInput += `摘要：${article.summary || '未提供'}\\n\\n`;\n}\n\nhtml += '</ol>';\n\nreturn [{\n  json: {\n    emailBody: html,\n    llmInput,\n    articles,\n    articleCount: articles.length,\n    reportDate: today,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        160
+      ],
+      "id": "template-185de10d",
+      "name": "Build Detailed Digest"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        848,
+        192
+      ],
+      "id": "template-7418402d",
+      "name": "Batch Articles"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1840,
+        624
+      ],
+      "id": "template-307f2ae9",
+      "name": "Wait1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "05ffce74-6f23-47e3-86c1-d22b9f901865",
+              "leftValue": "0",
+              "rightValue": "={{ $json.esearchresult.count }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -256,
+        128
+      ],
+      "id": "template-afd79a3f",
+      "name": "No Results Check"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.DIGEST_FROM_EMAIL }}",
+        "toEmail": "={{ $env.DIGEST_TO_EMAIL }}",
+        "subject": "=每日臨床頂級期刊速報 今日無更新文章（{{ $now.format('yyyy/LL/dd') }}）",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "template-979d627e",
+      "name": "Send No Results Email",
+      "notes": "Output example. Replace with Telegram, WhatsApp, Notion, local file writing, or your own email credential."
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.DIGEST_FROM_EMAIL }}",
+        "toEmail": "={{ $env.DIGEST_TO_EMAIL }}",
+        "subject": "=每日臨床頂級期刊速報 by Local QWEN（{{ $now.format('yyyy/LL/dd') }}）",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3728,
+        160
+      ],
+      "id": "template-2323dac7",
+      "name": "Send Final Summary Email",
+      "notes": "Output example. Replace with Telegram, WhatsApp, Notion, local file writing, or your own email credential."
+    },
+    {
+      "parameters": {
+        "jsCode": "// 遍歷每一筆資料\nfor (const item of $input.all()) {\n  \n  // 1. 取得原始資料 (防呆：確保它是字串)\n  const rawData = item.json.data;\n  let finalOutput = 'No abstract provided'; // 預設值\n\n  // 確保 rawData 是字串才處理，避免報錯\n  if (typeof rawData === 'string') {\n    \n    // 2. 步驟 1: 抓取 Abstract 區塊 (你的原始 Regex)\n    const match = rawData.match(/<Abstract>(.*?)<\\/Abstract>/s);\n\n    if (match && match[1]) {\n      let txt = match[1];\n\n      // 3. 步驟 2 & 3: 執行你的清理邏輯\n      txt = txt.replace(/<AbstractText[^>]*>/g, '\\n\\n'); // 保留段落\n      txt = txt.replace(/<[^>]+>/g, '');                 // 移除所有 XML/HTML 標籤\n      txt = txt.replace(/&#x[0-9a-fA-F]+;/g, ' ');       // 移除 HTML 實體編碼\n      txt = txt.replace(/\\s+/g, ' ').trim();             // 清理多餘空白\n\n      finalOutput = txt;\n    }\n  }\n\n  // 4. 將結果寫入新欄位 'cleaned_content'\n  // 這樣你在下一個節點就能清楚看到這個欄位\n  item.json.cleaned_content = finalOutput;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        624
+      ],
+      "id": "template-a5d343ee",
+      "name": "Extract Abstract Text"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Role\n你是頂級臨床期刊日報的總編輯，擅長把研究重點整理成「手機上好讀、但仍然專業」的繁體中文摘要。\n\n這一輪你**只負責深讀標題初篩後留下的候選文章**。\n你現在**不要排版成 HTML**，也**不要輸出 Markdown**。\n你只能輸出一份嚴格合法的 JSON。\n\n# Reader context\n閱讀者是臨床讀者，主要在手機 Gmail 上快速閱讀。\n他最在意：\n- 會不會影響基層醫療或小兒科診間實務\n- 是否可能改變臨床決策或衛教重點\n- 是否來自頂級期刊且有清楚結果\n- 文章若很多，請優先把筆力用在真正重要的研究\n\n# Language rules\n1. 除了 `title`、`journal`、`url`、`date` 可保留原始英文之外，其餘所有文字欄位都必須使用「繁體中文」。\n2. `headline`、`editorNote`、`titleZhNote`、`studyDesign`、`oneLinerSummary`、`mainFinding`、`assistantComment`、`reason` 一律用繁體中文撰寫。\n3. 不可輸出英文整句；若需保留英文術語，請放在繁體中文句子中，作為藥名、試驗名、縮寫或期刊名的一部分。\n4. 不可使用簡體中文。\n\n# Input\n你會收到一份 JSON，內含：\n- `articleCount`: 今天總篇數\n- `shortlistedCount`: 經標題初篩後留下來深讀的篇數\n- `articles`: 候選文章陣列\n- `preclassifiedTier3`: 已在前一步用標題判定為低優先、只需簡短帶過的文章\n\n每篇候選文章包含：\n- title\n- url\n- journal\n- date\n- triageTier\n- triageReason\n- triagePriorityScore\n- englishAbstract\n\n請注意：\n- shortlist 內的文章都是值得進一步評估的候選，因此 `tier1` 和 `tier2` 的判斷都可以直接參考完整英文摘要\n- 你不用再額外尋找 `summary`，shortlist 的主要判讀來源就是 `englishAbstract`\n- `preclassifiedTier3` 只有 metadata 與一句理由，這些文章已經在標題初篩被判定為低優先，最後只需簡短列過，不要重新推測它們的研究內容\n\n# Core task\n請把候選文章依照深讀後的重要性分到 `tier1`、`tier2`、`tier3`，每篇只能出現在其中一個 tier，不可重複，不可遺漏。\n\n# Classification intent\n## tier1\n真正值得優先閱讀、需要完整評析的文章。通常是：\n- guideline-changing 或 practice-changing 研究\n- 大型 RCT、meta-analysis、systematic review、重要 cohort\n- 對常見慢病、感染、疫苗、兒科照護、預防醫學、篩檢、基層醫療流程有直接影響\n- 具有清楚結果與實務意義\n\n## tier2\n有實務價值，但不必像 tier1 那麼展開。通常是：\n- 值得更新的臨床研究\n- 與家醫 / 小兒 / 預防醫學相關，但影響較次要\n- 次族群分析、橋接研究、門診衛教價值高的資料\n- 但前提是仍看得出明確的臨床行動價值；若深讀後發現結果資訊有限、偏觀點方法性、或與基層實務距離較遠，應降到 tier3，而不是留在 tier2\n\n## tier3\n這些是「雖然進了 shortlist，但深讀後仍不值得詳寫」的文章。\n- 只要一句理由\n- 不要長篇解釋\n\n# Writing style\n1. 請寫得像醫師晨會或研究助理口頭 briefing，不要像機械填表。\n2. 每個說明欄位都必須是「完整、自然、可直接讀下去的句子」，不能只寫名詞片語。\n3. `oneLinerSummary` 要像一句順口的總結，直接講這篇研究最值得先知道的重點。\n4. `mainFinding` 要把主要結果講清楚，若有關鍵數字，請自然寫進句子裡；不要另外拆成清單。\n5. `assistantComment` 要像一位有經驗的住院總醫師，在報告完研究後補上一段自己的看法：\n   - 要點出這篇對臨床端真正值得帶走的是什麼\n   - 可以加入務實的個人觀點與判斷\n   - 可以說明自己會特別注意哪一點、為什麼這篇值得看\n   - 但不能超出原文證據，不可捏造建議或過度延伸\n6. 不要寫得像公文或學術腔，避免生硬用語如：\n   - `強調流程風險點`\n   - `直接影響照護品質`\n   - `揭示關鍵元件`\n   除非你把它改寫成自然繁體中文句子。\n7. 不要用填空式重複句型。要有因果、轉折與臨床語境，但不能超出原文。\n\n# Hard constraints\n1. 你只分析 shortlist 內的文章。\n2. tier1 與 tier2 請依重要性排序。\n3. 當 `shortlistedCount > 10` 時，tier1 原則上 3 到 5 篇，tier2 原則上 4 到 8 篇，其餘降到 tier3。\n4. 把筆力集中在 tier1 與 tier2，tier3 只做極簡處理。\n5. 絕對不可以只寫題目句或主題句，例如「A 與 B 的關係」。\n6. `mainFinding` 必須明確交代結果，至少說清楚：增加、下降、優於、劣於、無顯著差異、降低風險、提高事件率等。\n7. 有數字時盡量保留大概數字；沒數字就講清楚方向與實務含義，不能捏造。\n8. 每篇都要補一個 `titleZhNote`，用 1 句繁體中文快速解釋英文標題在講什麼，方便一眼對照。\n9. `preclassifiedTier3` 不需要重新分析，只要保留最後的簡短存在感即可。\n10. `tier2` 每一篇都必須有完整內容，不能留白。至少要寫出：\n   - `studyDesign`\n   - `oneLinerSummary`\n   - `mainFinding`\n   - `assistantComment`\n11. 若某篇文章資訊有限，也不能把 `tier2` 欄位留空；請用自然繁體中文寫出一個保守但可讀的摘要與點評。\n12. `tier3.reason` 必須是具體理由，不能只寫「優先度較低」。可用的方向包括：\n   - 動物或前臨床研究，與臨床決策距離較遠\n   - 方法學或觀點性文章，對今日臨床改變有限\n   - 主題過於次專科，和基層實務直接關聯較低\n   - 結果資訊有限，暫時不屬於今天優先閱讀\n\n# Output schema\n你只能輸出以下 JSON 結構，不可多任何解釋文字：\n{\n  \"headline\": \"一句總結今天文獻亮點\",\n  \"editorNote\": \"1到2句，告訴臨床讀者今天先看哪幾篇以及原因\",\n  \"counts\": {\n    \"shortlisted\": 0,\n    \"tier1\": 0,\n    \"tier2\": 0,\n    \"tier3\": 0\n  },\n  \"tier1\": [\n    {\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"priorityScore\": 0,\n      \"studyDesign\": \"\",\n      \"oneLinerSummary\": \"\",\n      \"mainFinding\": \"\",\n      \"assistantComment\": \"\"\n    }\n  ],\n  \"tier2\": [\n    {\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"priorityScore\": 0,\n      \"studyDesign\": \"\",\n      \"oneLinerSummary\": \"\",\n      \"mainFinding\": \"\",\n      \"assistantComment\": \"\"\n    }\n  ],\n  \"tier3\": [\n    {\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"reason\": \"\"\n    }\n  ]\n}\n\n# Additional JSON rules\n- 所有說明性欄位必須是繁體中文，只有 title/journal/url/date 可保留原文\n- `priorityScore` 為 0 到 100 的整數\n- counts 必須與 shortlist 實際篇數一致\n- `titleZhNote` 不要只是逐字翻譯，要用自然繁中解釋題目重點\n- 只能輸出 JSON\n\n# Input Data\n{{ $json.text }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2912,
+        32
+      ],
+      "id": "template-7ffd0e75",
+      "name": "Analyze Article Priority JSON",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OPENROUTER_MODEL || \"google/gemini-flash-1.5\" }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        736
+      ],
+      "id": "template-c85cead6",
+      "name": "OpenRouter Model Final Summary",
+      "disabled": true,
+      "notes": "Optional disabled example. The workflow currently uses the OpenAI Chat Model node for both LLM chains."
+    },
+    {
+      "parameters": {
+        "jsCode": "function cleanText(value, maxLength = 0) {\n  const text = String(value ?? '').replace(/\\s+/g, ' ').trim();\n  if (!maxLength || text.length <= maxLength) return text;\n  return `${text.slice(0, maxLength)}...`;\n}\n\nconst triage = $json.triage || {};\nconst selected = Array.isArray($json.shortlistedArticles) ? $json.shortlistedArticles : [];\n\nconst normalizedArticles = selected.map((article, index) => ({\n  index: index + 1,\n  originalIndex: Number(article.originalIndex || article.index || index + 1),\n  title: cleanText(article.title),\n  url: cleanText(article.url),\n  journal: cleanText(article.journal),\n  date: cleanText(article.date),\n  triageTier: cleanText(article.triageTier),\n  triageReason: cleanText(article.triageReason, 180),\n  triagePriorityScore: Number.isFinite(Number(article.triagePriorityScore)) ? Math.round(Number(article.triagePriorityScore)) : 0,\n  englishAbstract: cleanText(article.englishAbstract || article.summary, 12000),\n}));\n\nconst preclassifiedTier3 = Array.isArray($json.preTier3)\n  ? $json.preTier3.map((item) => ({\n      title: cleanText(item.title, 220),\n      titleZhNote: cleanText(item.titleZhNote, 120),\n      url: cleanText(item.url),\n      journal: cleanText(item.journal, 120),\n      date: cleanText(item.date, 60),\n      reason: cleanText(item.reason, 80),\n    }))\n  : [];\n\nconst payload = {\n  reportDate: $json.reportDate || new Date().toISOString().slice(0, 10),\n  articleCount: Number($json.articleCount || normalizedArticles.length),\n  shortlistedCount: normalizedArticles.length,\n  preclassifiedTier3Count: preclassifiedTier3.length,\n  triageNote: cleanText(triage.note, 220),\n  instruction: 'shortlist 文章都保留完整英文摘要供 deep analysis 使用。已在前一步被放進 preclassifiedTier3 的文章，只有標題與簡短資料，最後只需簡短列過，不需要重新分析研究內容。請把主要筆力放在 shortlist 的 tier1 與 tier2。',\n  articles: normalizedArticles,\n  preclassifiedTier3,\n};\n\nconst text = JSON.stringify(payload, null, 2);\n\nreturn {\n  json: {\n    ...$json,\n    shortlistedCount: normalizedArticles.length,\n    shortlistedArticles: normalizedArticles,\n    preTier3: preclassifiedTier3,\n    text,\n    textPreview: text.slice(0, 500),\n    length: text.length,\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2624,
+        128
+      ],
+      "id": "template-ce824970",
+      "name": "Prepare Deep Analysis Input"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction getRawModelOutput(input) {\n  const direct = input?.text ?? input?.data ?? input?.body ?? '';\n  const raw = typeof direct === 'string' ? direct : JSON.stringify(direct ?? '');\n  const trimmed = String(raw ?? '').trim();\n  if (!trimmed) return trimmed;\n\n  if (trimmed.startsWith('data:')) {\n    const lines = trimmed.split(/\\r?\\n/);\n    let assembled = '';\n    for (const rawLine of lines) {\n      const line = rawLine.trim();\n      if (!line.startsWith('data:')) continue;\n      const payload = line.slice(5).trim();\n      if (!payload || payload === '[DONE]') continue;\n      try {\n        const parsed = JSON.parse(payload);\n        const choice = parsed?.choices?.[0] || {};\n        const delta = choice?.delta || {};\n        const piece = delta?.content ?? choice?.message?.content ?? choice?.text ?? '';\n        if (piece) assembled += piece;\n      } catch {}\n    }\n    if (assembled.trim()) return assembled.trim();\n  }\n\n  try {\n    const parsed = JSON.parse(trimmed);\n    const choice = parsed?.choices?.[0] || {};\n    const content = choice?.message?.content ?? choice?.text ?? '';\n    if (content) return String(content).trim();\n  } catch {}\n\n  return trimmed;\n}\n\nfunction getStreamErrorMessage(raw) {\n  const text = String(raw ?? '').trim();\n  if (!text.includes('event: error')) return '';\n  const lines = text.split(/\\r?\\n/);\n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i].trim();\n    if (line !== 'event: error') continue;\n    const next = String(lines[i + 1] ?? '').trim();\n    if (!next.startsWith('data:')) return 'stream error';\n    const payload = next.slice(5).trim();\n    try {\n      const parsed = JSON.parse(payload);\n      return parsed?.error?.message || parsed?.message || 'stream error';\n    } catch {\n      return payload || 'stream error';\n    }\n  }\n  return 'stream error';\n}\n\nfunction stripFence(text) {\n  const value = String(text ?? '').trim();\n  const fenceMatch = value.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  return fenceMatch ? fenceMatch[1].trim() : value;\n}\n\nfunction repairJsonLike(value) {\n  let repaired = String(value ?? '').trim();\n  repaired = repaired\n    .replace(/[“”]/g, '\"')\n    .replace(/[‘’]/g, \"'\")\n    .replace(/,\\s*([}\\]])/g, '$1')\n    .replace(/\\r/g, '');\n\n  repaired = repaired.replace(/:\\s*「([^」]+)」([^,}\\]\\n]*)/g, (_, inner, rest) => {\n    const tail = String(rest || '').trim();\n    const content = tail ? `「${inner}」${tail}` : `「${inner}」`;\n    return `: \"${content.replace(/\"/g, '\\\\\"')}\"`;\n  });\n\n  repaired = repaired.replace(/:\\s*([^\"{\\[\\]\\d\\-][^,}\\]\\n]*)(?=\\s*[,}\\]])/g, (match, rawValue) => {\n    const valueText = String(rawValue ?? '').trim();\n    if (!valueText) return ': \"\"';\n    if (['true', 'false', 'null'].includes(valueText)) return `: ${valueText}`;\n    if (/^-?\\d+(?:\\.\\d+)?$/.test(valueText)) return `: ${valueText}`;\n    return `: \"${valueText.replace(/\"/g, '\\\\\"')}\"`;\n  });\n\n  repaired = repaired.replace(/(\\n\\s*}\\s*),?(\\n\\s*\"tier[23]\"\\s*:)/g, '$1],$2');\n  return repaired;\n}\n\nfunction completeBrackets(text) {\n  let repaired = String(text ?? '');\n  const openBraces = (repaired.match(/\\{/g) || []).length;\n  const closeBraces = (repaired.match(/\\}/g) || []).length;\n  const openBrackets = (repaired.match(/\\[/g) || []).length;\n  const closeBrackets = (repaired.match(/\\]/g) || []).length;\n  repaired += ']'.repeat(Math.max(0, openBrackets - closeBrackets));\n  repaired += '}'.repeat(Math.max(0, openBraces - closeBraces));\n  return repaired;\n}\n\nfunction decodeJsonStringLiteral(str) {\n  try {\n    return JSON.parse(`\"${String(str).replace(/\\\\/g, '\\\\\\\\').replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n')}\"`);\n  } catch {\n    return String(str ?? '');\n  }\n}\n\nfunction extractField(text, field) {\n  const regex = new RegExp(`\"${field}\"\\\\s*:\\\\s*\"((?:\\\\\\\\.|[^\"\\\\\\\\])*)\"`, 'm');\n  const match = String(text).match(regex);\n  return match ? decodeJsonStringLiteral(match[1]) : '';\n}\n\nfunction extractCounts(text) {\n  const match = String(text).match(/\"counts\"\\s*:\\s*\\{([\\s\\S]*?)\\}/m);\n  if (!match) return null;\n  try {\n    return JSON.parse(`{${match[1]}}`);\n  } catch {\n    const counts = {};\n    for (const key of ['total', 'tier1', 'tier2', 'tier3']) {\n      const itemMatch = match[1].match(new RegExp(`\"${key}\"\\\\s*:\\\\s*(\\\\d+)`));\n      if (itemMatch) counts[key] = Number(itemMatch[1]);\n    }\n    return counts;\n  }\n}\n\nfunction findMatchingBracket(text, startIndex) {\n  let depth = 0;\n  let inString = false;\n  let escape = false;\n  for (let i = startIndex; i < text.length; i++) {\n    const ch = text[i];\n    if (escape) { escape = false; continue; }\n    if (ch === '\\\\') { escape = true; continue; }\n    if (ch === '\"') { inString = !inString; continue; }\n    if (inString) continue;\n    if (ch === '[') depth++;\n    else if (ch === ']') {\n      depth--;\n      if (depth === 0) return i;\n    }\n  }\n  return -1;\n}\n\nfunction findTierStart(src, field) {\n  const regex = new RegExp(`\\\\n\\\\s*\"${field}\"\\\\s*:\\\\s*\\\\[`, 'm');\n  const match = regex.exec(src);\n  if (!match) return -1;\n  return src.indexOf('[', match.index);\n}\n\nfunction findNextTierKey(src, nextField, fromIndex) {\n  if (!nextField) return -1;\n  const regex = new RegExp(`\\\\n\\\\s*\"${nextField}\"\\\\s*:\\\\s*\\\\[`, 'm');\n  const sliced = src.slice(fromIndex);\n  const match = regex.exec(sliced);\n  return match ? fromIndex + match.index : -1;\n}\n\nfunction extractTierArray(text, field, nextField) {\n  const src = String(text ?? '');\n  const startBracket = findTierStart(src, field);\n  if (startBracket === -1) return [];\n\n  let rawBlock = '';\n  const nextPos = findNextTierKey(src, nextField, startBracket + 1);\n  if (nextPos !== -1) {\n    rawBlock = src.slice(startBracket, nextPos).replace(/,\\s*$/, '').trim();\n    if (!rawBlock.endsWith(']')) rawBlock += '\\n]';\n  } else {\n    const naturalEnd = findMatchingBracket(src, startBracket);\n    if (naturalEnd !== -1) {\n      rawBlock = src.slice(startBracket, naturalEnd + 1);\n    } else {\n      const endPos = src.lastIndexOf('}');\n      rawBlock = src.slice(startBracket, endPos).replace(/,\\s*$/, '').trim();\n      if (!rawBlock.endsWith(']')) rawBlock += '\\n]';\n    }\n  }\n\n  const attempts = [rawBlock, repairJsonLike(rawBlock), completeBrackets(repairJsonLike(rawBlock))];\n  for (const attempt of attempts) {\n    try {\n      const parsed = JSON.parse(attempt);\n      return Array.isArray(parsed) ? parsed : [];\n    } catch {}\n  }\n  return [];\n}\n\nfunction salvageAnalysis(raw) {\n  const text = stripFence(raw);\n  const tier1 = extractTierArray(text, 'tier1', 'tier2');\n  const tier2 = extractTierArray(text, 'tier2', 'tier3');\n  const tier3 = extractTierArray(text, 'tier3', null);\n  const counts = extractCounts(text) || {};\n  const total = tier1.length + tier2.length + tier3.length;\n  if (!tier1.length && !tier2.length && !tier3.length) {\n    throw new Error('Unable to salvage any tiers from malformed JSON');\n  }\n  return {\n    headline: extractField(text, 'headline') || '今日文獻快報',\n    editorNote: extractField(text, 'editorNote') || '',\n    counts: {\n      total: counts.total || total,\n      tier1: tier1.length,\n      tier2: tier2.length,\n      tier3: tier3.length,\n    },\n    tier1,\n    tier2,\n    tier3,\n  };\n}\n\nfunction extractJson(raw) {\n  const text = stripFence(raw);\n  if (!text) throw new Error('Empty model output');\n  const start = text.indexOf('{');\n  const end = text.lastIndexOf('}');\n  const block = start !== -1 && end !== -1 && end > start ? text.slice(start, end + 1) : text;\n  const attempts = [block, repairJsonLike(block), completeBrackets(repairJsonLike(block))];\n  for (const attempt of attempts) {\n    try {\n      return JSON.parse(attempt);\n    } catch {}\n  }\n  throw new Error('JSON parse failed after repair attempts');\n}\n\nfunction normalizeText(value, maxLength = 0) {\n  const text = String(value ?? '').replace(/\\s+/g, ' ').trim();\n  if (!maxLength || text.length <= maxLength) return text;\n  return `${text.slice(0, maxLength)}...`;\n}\n\nfunction normalizeUrl(value) {\n  const url = String(value ?? '').trim().replace(/\\s+/g, '');\n  if (!url) return '';\n  if (url.startsWith('http://') || url.startsWith('https://')) return url;\n  if (url.startsWith('www.')) return `https://${url}`;\n  return url;\n}\n\nfunction normalizeKey(value) {\n  return String(value ?? '').toLowerCase().replace(/\\s+/g, ' ').trim();\n}\n\nfunction compactKey(value) {\n  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');\n}\n\nfunction buildArticleMaps(sourceArticles) {\n  const byTitle = new Map();\n  const byCompactTitle = new Map();\n  for (const article of Array.isArray(sourceArticles) ? sourceArticles : []) {\n    const normalized = {\n      title: normalizeText(article.title),\n      url: normalizeUrl(article.url),\n      journal: normalizeText(article.journal),\n      date: normalizeText(article.date),\n    };\n    const key = normalizeKey(article.title);\n    const compact = compactKey(article.title);\n    if (key) byTitle.set(key, normalized);\n    if (compact) byCompactTitle.set(compact, normalized);\n  }\n  return { byTitle, byCompactTitle };\n}\n\nfunction getSourceArticle(item, maps) {\n  const key = normalizeKey(item.title);\n  const compact = compactKey(item.title);\n  return maps.byTitle.get(key) || maps.byCompactTitle.get(compact) || {};\n}\n\nfunction normalizePriority(value) {\n  const num = Number(value);\n  return Number.isFinite(num) ? Math.max(0, Math.min(100, Math.round(num))) : 0;\n}\n\nfunction ensureNaturalSentence(text, fallback = '') {\n  return normalizeText(text, 520) || normalizeText(fallback, 520);\n}\n\nfunction normalizeTier(list, type, maps) {\n  if (!Array.isArray(list)) return [];\n  return list.map((item) => {\n    const source = getSourceArticle(item, maps);\n    const base = {\n      title: normalizeText(item.title) || source.title || '',\n      titleZhNote: normalizeText(item.titleZhNote, 140),\n      url: normalizeUrl(item.url) || source.url || '',\n      journal: normalizeText(item.journal) || source.journal || '',\n      date: normalizeText(item.date) || source.date || '',\n    };\n\n    if (type === 'tier3') {\n      return {\n        ...base,\n        reason: normalizeText(item.reason, 220),\n      };\n    }\n\n    const oneLinerSummary = ensureNaturalSentence(item.oneLinerSummary, item.mainFinding);\n    const mainFinding = ensureNaturalSentence(item.mainFinding, oneLinerSummary);\n    const assistantComment = ensureNaturalSentence(item.assistantComment, item.practicalTakeaway || item.clinicalTakeaway || mainFinding);\n\n    return {\n      ...base,\n      priorityScore: normalizePriority(item.priorityScore),\n      studyDesign: normalizeText(item.studyDesign, 180),\n      oneLinerSummary,\n      mainFinding,\n      assistantComment,\n    };\n  });\n}\n\nfunction run($json, $items) {\n  const streamErrorMessage = getStreamErrorMessage($json.text || $json.data || '');\n  if (streamErrorMessage) throw new Error(`Model stream interrupted: ${streamErrorMessage}`);\n  const modelOutput = getRawModelOutput($json);\n\n  let parsed;\n  let parseMode = 'strict';\n  try {\n    parsed = extractJson(modelOutput);\n  } catch {\n    parsed = salvageAnalysis(modelOutput);\n    parseMode = 'salvaged';\n  }\n\n  let sourceArticles = [];\n  try {\n    const upstream = $items('Prepare Deep Review Input', 0, 0);\n    if (upstream?.length) sourceArticles = upstream[0].json?.articles || [];\n  } catch {}\n\n  const articleMaps = buildArticleMaps(sourceArticles);\n  const tier1 = normalizeTier(parsed.tier1, 'tier1', articleMaps);\n  const tier2 = normalizeTier(parsed.tier2, 'tier2', articleMaps);\n  const tier3 = normalizeTier(parsed.tier3, 'tier3', articleMaps);\n  const total = tier1.length + tier2.length + tier3.length;\n\n  const analysis = {\n    headline: normalizeText(parsed.headline, 180) || '今日文獻快報',\n    editorNote: normalizeText(parsed.editorNote, 420),\n    counts: {\n      total,\n      tier1: tier1.length,\n      tier2: tier2.length,\n      tier3: tier3.length,\n    },\n    tier1,\n    tier2,\n    tier3,\n  };\n\n  return {\n    json: {\n      ...$json,\n      analysis,\n      text: JSON.stringify(analysis, null, 2),\n      parseStatus: parseMode,\n    }\n  };\n}\n\nconst result = run($json, $items);\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3216,
+        160
+      ],
+      "id": "template-16dc0b76",
+      "name": "Parse Final Analysis JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "function esc(value) {\n  return String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nfunction paragraphize(text) {\n  return esc(String(text ?? '')).replace(/\\n+/g, '<br>');\n}\n\nfunction metaLine(item) {\n  return [item.journal, item.date].filter(Boolean).map(esc).join(' | ');\n}\n\nconst analysis = $json.analysis || {};\nconst tier1 = Array.isArray(analysis.tier1) ? analysis.tier1 : [];\nconst tier2 = Array.isArray(analysis.tier2) ? analysis.tier2 : [];\nconst tier3 = Array.isArray(analysis.tier3) ? analysis.tier3 : [];\nconst counts = analysis.counts || { total: tier1.length + tier2.length + tier3.length, tier1: tier1.length, tier2: tier2.length, tier3: tier3.length };\n\nlet summaryLine = `總篇數 ${counts.total || 0} 篇 ｜ Tier 1 ${counts.tier1 || 0} 篇 ｜ Tier 2 ${counts.tier2 || 0} 篇 ｜ Tier 3 ${counts.tier3 || 0} 篇`;\nif (counts.shortlisted) {\n  summaryLine = `總篇數 ${counts.total || 0} 篇 ｜ 深讀 ${counts.shortlisted || 0} 篇 ｜ Tier 1 ${counts.tier1 || 0} 篇 ｜ Tier 2 ${counts.tier2 || 0} 篇 ｜ Tier 3 ${counts.tier3 || 0} 篇`;\n}\n\nfunction renderTierCard(item, accent, bg) {\n  return `<div style=\"background:${bg};border:1px solid #e6e0d7;border-radius:11px;padding:12px 13px;margin-bottom:10px;\">\n    <a href=\"${esc(item.url)}\" style=\"font-size:15px;line-height:1.42;color:${accent};font-weight:700;text-decoration:none;\">${esc(item.title)}</a>\n    ${item.titleZhNote ? `<div style=\"font-size:12px;line-height:1.45;color:#6b2f26;margin-top:4px;\"><a href=\"${esc(item.url)}\" style=\"color:inherit;text-decoration:none;\">${paragraphize(item.titleZhNote)}</a></div>` : ''}\n    <div style=\"font-size:11px;color:#7b665d;margin-top:5px;\">${metaLine(item)}${item.priorityScore ? ` ｜ 重要度 ${item.priorityScore}` : ''}</div>\n    ${item.studyDesign ? `<p style=\"font-size:12px;color:#5a4d45;margin:9px 0 6px 0;\"><strong>研究設計：</strong>${paragraphize(item.studyDesign)}</p>` : ''}\n    ${item.oneLinerSummary ? `<p style=\"font-size:13px;color:#2f343a;margin:0 0 6px 0;\"><strong>一句話總結：</strong>${paragraphize(item.oneLinerSummary)}</p>` : ''}\n    ${item.mainFinding ? `<p style=\"font-size:13px;color:#33483a;margin:0 0 6px 0;\"><strong>重點結果：</strong>${paragraphize(item.mainFinding)}</p>` : ''}\n    ${item.assistantComment ? `<p style=\"font-size:12px;color:#6b2f26;margin:0;background:#f7f7f7;border-radius:8px;padding:7px 9px;\"><strong>助理點評：</strong>${paragraphize(item.assistantComment)}</p>` : ''}\n  </div>`;\n}\n\nlet html = `\n<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,'Microsoft JhengHei',sans-serif;color:#243447;line-height:1.65;max-width:720px;margin:0 auto;padding:14px 10px;background:#f8f7f4;\">\n  <div style=\"background:#ffffff;border:1px solid #e6e0d7;border-radius:12px;padding:18px 16px;margin-bottom:14px;\">\n    <div style=\"font-size:12px;color:#5e554c;margin-bottom:6px;\">頂級期刊臨床日報</div>\n    <h1 style=\"font-size:21px;line-height:1.32;color:#7a1f3d;margin:0 0 8px 0;\">${esc(analysis.headline || '今日頂級期刊臨床快報')}</h1>\n    <p style=\"font-size:14px;color:#5e554c;margin:0 0 12px 0;\">${paragraphize(analysis.editorNote || `臨床讀者好，今天共有 ${counts.total || 0} 篇文獻。`)}</p>\n    <div style=\"font-size:12px;color:#57352d;background:#f7ede8;border-radius:10px;padding:8px 10px;display:inline-block;\">${summaryLine}</div>\n  </div>`;\n\nif (tier1.length) {\n  html += `<div style=\"background:#fff8f5;border:1px solid #ead9d1;border-radius:12px;padding:16px;margin-bottom:14px;\"><h2 style=\"font-size:18px;color:#8a2744;margin:0 0 12px 0;\">🔥 Tier 1 必讀重點</h2>`;\n  for (const item of tier1) html += renderTierCard(item, '#8a2744', '#ffffff');\n  html += '</div>';\n}\n\nif (tier2.length) {\n  html += `<div style=\"background:#ffffff;border:1px solid #e6e0d7;border-radius:12px;padding:16px;margin-bottom:14px;\"><h2 style=\"font-size:18px;color:#9a4f2d;margin:0 0 12px 0;\">📑 Tier 2 實務更新</h2>`;\n  for (const item of tier2) html += renderTierCard(item, '#9a4f2d', '#fbfcfd');\n  html += '</div>';\n}\n\nif (tier3.length) {\n  html += `<div style=\"background:#ffffff;border:1px solid #e6e0d7;border-radius:12px;padding:16px;margin-bottom:14px;\"><h2 style=\"font-size:16px;color:#7f7a73;margin:0 0 10px 0;\">📉 Tier 3 低優先文章</h2><ul style=\"padding-left:18px;margin:0;\">`;\n  for (const item of tier3) html += `<li style=\"font-size:12px;color:#7f7a73;margin-bottom:7px;\"><a href=\"${esc(item.url)}\" style=\"color:#7f7a73;text-decoration:none;\">${esc(item.title)}</a>${item.titleZhNote ? ` ｜ <a href=\"${esc(item.url)}\" style=\"color:#7f7a73;text-decoration:none;\">${paragraphize(item.titleZhNote)}</a>` : ''}${item.reason ? ` - ${paragraphize(item.reason)}` : ''}</li>`;\n  html += '</ul></div>';\n}\n\nhtml += `<div style=\"font-size:11px;color:#7b8794;text-align:center;padding:6px 0;\">報告完畢</div></div>`;\n\nreturn { json: { ...$json, html, text: html } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3472,
+        160
+      ],
+      "id": "template-63a7aa97",
+      "name": "Render Final Summary HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "function cleanText(value, maxLength = 0) {\n  const text = String(value ?? '').replace(/\\s+/g, ' ').trim();\n  if (!maxLength || text.length <= maxLength) return text;\n  return `${text.slice(0, maxLength)}...`;\n}\n\nlet articles = Array.isArray($json?.articles) ? $json.articles : [];\nif (!articles.length) {\n  try {\n    const upstream = $items(\"Build Detailed Digest\", $itemIndex, 0);\n    if (upstream?.length) {\n      articles = upstream[0].json?.articles ?? [];\n    }\n  } catch (e) {\n  }\n}\n\nconst triageArticles = articles.map((article, index) => ({\n  index: index + 1,\n  title: cleanText(article.title, 300),\n  url: cleanText(article.url),\n  journal: cleanText(article.journal, 120),\n  date: cleanText(article.date, 60),\n}));\n\nconst payload = {\n  reportDate: $json.reportDate || new Date().toISOString().slice(0, 10),\n  articleCount: triageArticles.length,\n  instruction: '這一輪只能用 title、journal、date 做標題初篩；不要假裝看過摘要。',\n  articles: triageArticles,\n};\n\nconst text = JSON.stringify(payload, null, 2);\n\nreturn {\n  json: {\n    ...$json,\n    articles,\n    triageArticles,\n    text,\n    textPreview: text.slice(0, 500),\n    length: text.length,\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        144
+      ],
+      "id": "template-ef9ec5d9",
+      "name": "Prepare Title Triage Input"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# Role\n你是頂級期刊文獻的「標題初篩編輯」。\n\n這一輪你只能根據：\n- title\n- journal\n- date\n來做粗分流。\n\n你**不能假裝讀過摘要**，也**不要排版**。你只能輸出嚴格合法的 JSON。\n\n# Goal\n把今天所有文章先分成三群：\n1. `candidateTier1`: 很可能值得深讀與詳寫\n2. `candidateTier2`: 只有在看標題就能判斷仍與臨床實務直接相關、而且值得再看摘要細節時，才進入第二輪深讀\n3. `tier3`: 光看標題就可先歸為低優先，只需最後簡單列過\n\n# Reader context\n閱讀者是臨床讀者，重視家醫科、小兒科、預防醫學、基層醫療實務。\n\n# Language rules\n1. 除了 `title`、`journal`、`url`、`date` 可保留原文，其他所有欄位都必須使用繁體中文。\n2. `titleZhNote` 也必須使用繁體中文，用來快速解釋英文標題在講什麼。\n3. 不可輸出英文整句。\n4. 不可使用簡體中文。\n\n# Triage principles\n- 這一步是「粗分流」，不是定案。\n- 請務實分流，不要把 `candidateTier2` 當成保守收容區；只有看標題就能感覺到仍與臨床實務直接相關、而且值得再看摘要細節的文章，才留下進第二輪。\n- NEJM / Lancet / JAMA / BMJ / Ann Intern Med / JAMA Intern Med / Nat Med / Nature / Science / Cell 中與臨床實務高度相關的標題，優先留在候選名單。\n- 純方法學、政策聲明、純機轉、外科細節、與基層醫療距離很遠的標題，可以先放 `tier3`。\n- 若標題看起來像 commentary、viewpoint、position paper、methods paper、scoping review，通常直接放 `tier3`，除非對基層醫療或臨床流程有非常明確且直接的重要性。\n- 若標題看起來偏次專科、機轉導向、流程或政策討論、沒有明顯臨床行動價值，請優先放 `tier3`，不要先塞進 `candidateTier2`。\n\n# Hard constraints\n1. 每篇文章必須且只能出現在一個群組。\n2. 如果 `articleCount > 20`：\n   - `candidateTier1` 以 3 到 8 篇為原則\n   - `candidateTier2` 以 5 到 10 篇為原則\n   - 其餘放 `tier3`\n3. `candidateTier2` 不應只是「也許有點相關」；若看標題仍看不出明確的臨床實務價值，請直接放 `tier3`。\n4. `tier3` 只要給非常短的一句理由。\n5. 每篇都要有 `titleZhNote`，用 1 句繁體中文快速解釋英文標題。\n6. 只根據標題、期刊、日期做粗分流，不要捏造研究結果。\n\n# Output schema\n{\n  \"note\": \"一句話說明今天標題初篩策略\",\n  \"counts\": {\n    \"total\": 0,\n    \"candidateTier1\": 0,\n    \"candidateTier2\": 0,\n    \"tier3\": 0\n  },\n  \"candidateTier1\": [\n    {\n      \"index\": 0,\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"priorityScore\": 0,\n      \"reason\": \"\"\n    }\n  ],\n  \"candidateTier2\": [\n    {\n      \"index\": 0,\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"priorityScore\": 0,\n      \"reason\": \"\"\n    }\n  ],\n  \"tier3\": [\n    {\n      \"index\": 0,\n      \"title\": \"\",\n      \"titleZhNote\": \"\",\n      \"url\": \"\",\n      \"journal\": \"\",\n      \"date\": \"\",\n      \"reason\": \"\"\n    }\n  ]\n}\n\n# Additional JSON rules\n- `priorityScore` 為 0 到 100 的整數\n- counts 必須與實際篇數一致\n- `titleZhNote` 不要只是逐字翻譯，要用自然繁中解釋題目重點\n- 只能輸出 JSON\n\n# Input Data\n{{ $json.text }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2032,
+        160
+      ],
+      "id": "template-2ee2fdf6",
+      "name": "Title Triage JSON",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 4
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractJson(raw) {\n  const text = String(raw ?? '').trim();\n  if (!text) throw new Error('Empty model output');\n\n  const fenceMatch = text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  const candidate = fenceMatch ? fenceMatch[1].trim() : text;\n\n  try {\n    return JSON.parse(candidate);\n  } catch (e) {\n  }\n\n  const start = candidate.indexOf('{');\n  const end = candidate.lastIndexOf('}');\n  if (start === -1 || end === -1 || end <= start) throw new Error('JSON block not found');\n  return JSON.parse(candidate.slice(start, end + 1));\n}\n\nfunction cleanText(value, maxLength = 0) {\n  const text = String(value ?? '').replace(/\\s+/g, ' ').trim();\n  if (!maxLength || text.length <= maxLength) return text;\n  return `${text.slice(0, maxLength)}...`;\n}\n\nfunction normalizePriority(value) {\n  const num = Number(value);\n  return Number.isFinite(num) ? Math.max(0, Math.min(100, Math.round(num))) : 0;\n}\n\nlet fullArticles = Array.isArray($json?.articles) ? $json.articles : [];\nif (!fullArticles.length) {\n  try {\n    const upstream = $items(\"Build Detailed Digest\", $itemIndex, 0);\n    if (upstream?.length) fullArticles = upstream[0].json?.articles ?? [];\n  } catch (e) {\n  }\n}\n\nconst articleMap = new Map(fullArticles.map((article, idx) => [Number(article.index || idx + 1), {\n  ...article,\n  originalIndex: Number(article.index || idx + 1),\n}]));\n\nconst parsed = extractJson($json.text);\n\nfunction normalizeList(list, tier) {\n  if (!Array.isArray(list)) return [];\n  return list.map((item) => {\n    const index = Number(item.index);\n    const base = articleMap.get(index) || {\n      originalIndex: index,\n      index,\n      title: item.title,\n      url: item.url,\n      journal: item.journal,\n      date: item.date,\n      summary: '',\n      englishAbstract: '',\n    };\n\n    return {\n      ...base,\n      triageTier: tier,\n      triageReason: cleanText(item.reason, 100),\n      titleZhNote: cleanText(item.titleZhNote, 140),\n      triagePriorityScore: normalizePriority(item.priorityScore),\n      title: cleanText(base.title || item.title),\n      url: cleanText(base.url || item.url),\n      journal: cleanText(base.journal || item.journal),\n      date: cleanText(base.date || item.date),\n      englishAbstract: cleanText(base.englishAbstract || base.summary, 12000),\n    };\n  });\n}\n\nconst candidateTier1 = normalizeList(parsed.candidateTier1, 'candidateTier1');\nconst candidateTier2 = normalizeList(parsed.candidateTier2, 'candidateTier2');\nconst seen = new Set([...candidateTier1, ...candidateTier2].map((item) => item.originalIndex));\nlet preTier3 = normalizeList(parsed.tier3, 'tier3').filter((item) => !seen.has(item.originalIndex));\nfor (const item of preTier3) seen.add(item.originalIndex);\n\nfor (const [index, article] of articleMap.entries()) {\n  if (!seen.has(index)) {\n    preTier3.push({\n      ...article,\n      triageTier: 'tier3',\n      triageReason: '標題初看與基層實務關聯較低',\n      titleZhNote: '',\n      triagePriorityScore: 0,\n    });\n  }\n}\n\nconst shortlistedArticles = [...candidateTier1, ...candidateTier2]\n  .sort((a, b) => (b.triagePriorityScore || 0) - (a.triagePriorityScore || 0) || a.originalIndex - b.originalIndex);\n\nconst triage = {\n  note: cleanText(parsed.note, 180) || '先用標題粗分流，保留較可能影響臨床實務的文章進入深讀。',\n  counts: {\n    total: fullArticles.length,\n    candidateTier1: candidateTier1.length,\n    candidateTier2: candidateTier2.length,\n    tier3: preTier3.length,\n  },\n};\n\nreturn {\n  json: {\n    ...$json,\n    triage,\n    shortlistedArticles,\n    shortlistedCount: shortlistedArticles.length,\n    preTier3: preTier3.map((item) => ({\n      title: item.title,\n      titleZhNote: item.titleZhNote,\n      url: item.url,\n      journal: item.journal,\n      date: item.date,\n      reason: cleanText(item.triageReason || '標題初看優先度較低', 80),\n    })),\n    parseStatus: 'ok',\n    text: JSON.stringify({ triage, shortlistedCount: shortlistedArticles.length }, null, 2),\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        128
+      ],
+      "id": "template-ea9b9a20",
+      "name": "Parse Title Triage JSON"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "={{ $env.OPENAI_MODEL || \"gpt-4o-mini\" }}",
+          "mode": "list",
+          "cachedResultName": "Configurable chat model"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2624,
+        560
+      ],
+      "id": "template-5d2d47c4",
+      "name": "OpenAI Chat Model",
+      "notes": "Add your own OpenAI-compatible credential. For local LLMs, configure the credential base URL in n8n, not in this public template."
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Search PubMed Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search PubMed Articles": {
+      "main": [
+        [
+          {
+            "node": "No Results Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch PubMed Summaries": {
+      "main": [
+        [
+          {
+            "node": "Extract Article List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Article List": {
+      "main": [
+        [
+          {
+            "node": "Normalize Article Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Article Payload": {
+      "main": [
+        [
+          {
+            "node": "Split Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Articles": {
+      "main": [
+        [
+          {
+            "node": "Batch Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Article XML": {
+      "main": [
+        [
+          {
+            "node": "Extract Abstract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Fetch": {
+      "main": [
+        [
+          {
+            "node": "Fetch Article XML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Article Record": {
+      "main": [
+        [
+          {
+            "node": "Build Detailed Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Detailed Digest": {
+      "main": [
+        [
+          {
+            "node": "Prepare Title Triage Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Articles": {
+      "main": [
+        [
+          {
+            "node": "Prepare Article Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Before Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Batch Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Results Check": {
+      "main": [
+        [
+          {
+            "node": "Send No Results Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch PubMed Summaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Abstract Text": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Model Final Summary": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Analyze Article Priority JSON": {
+      "main": [
+        [
+          {
+            "node": "Parse Final Analysis JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Final Analysis JSON": {
+      "main": [
+        [
+          {
+            "node": "Render Final Summary HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Final Summary HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Final Summary Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Deep Analysis Input": {
+      "main": [
+        [
+          {
+            "node": "Analyze Article Priority JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Title Triage Input": {
+      "main": [
+        [
+          {
+            "node": "Title Triage JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Title Triage JSON": {
+      "main": [
+        [
+          {
+            "node": "Parse Title Triage JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Title Triage JSON": {
+      "main": [
+        [
+          {
+            "node": "Prepare Deep Analysis Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Title Triage JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Analyze Article Priority JSON",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    "pubmed",
+    "literature-review",
+    "daily-digest",
+    "template"
+  ]
+}

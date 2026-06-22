@@ -1,0 +1,22 @@
+{
+  "sourceWorkflowName": "Med_Top_Journal_Daily_v3.0",
+  "publicTemplateName": "Top Journal Daily Digest - Public Template",
+  "nodeCount": 25,
+  "defaultSchedule": "Daily at 06:30 in the workflow timezone",
+  "includedJournals": [
+    "N Engl J Med",
+    "Lancet",
+    "JAMA",
+    "BMJ",
+    "Ann Intern Med",
+    "JAMA Intern Med",
+    "Nat Med",
+    "Nature",
+    "Science",
+    "Cell"
+  ],
+  "outputs": [
+    "email example in workflow",
+    "Telegram/WhatsApp/local-file alternatives documented"
+  ]
+}
